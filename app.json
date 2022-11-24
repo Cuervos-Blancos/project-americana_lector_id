@@ -1,0 +1,5 @@
+{
+  "name": "americanapp",
+  "displayName": "americanapp",
+  "permissions" : ["CAMERA"]
+}
