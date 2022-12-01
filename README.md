@@ -4,9 +4,9 @@ _Aplicación móvil en React-Native_
 
 ## Comenzando 🚀
 
-_Si al correr da error de: Invariant Violation: ViewPropTypes has been removed from React Native. Migrate to ViewPropTypes exported from 'deprecated-react-native-prop-types' _
+_Si al correr da error de: Invariant Violation: ViewPropTypes has been removed from React Native. Migrate to ViewPropTypes exported from 'deprecated-react-native-prop-types'_
 
-[Hacer los siguientes pasos:](https://stackoverflow.com/a/73135908/20297104) 
+[Hacer los siguientes pasos:](https://stackoverflow.com/a/73135908/20297104) - Mejor resultado a dicho problema
 
 
 ### Pre-requisitos 📋
