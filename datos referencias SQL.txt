@@ -1,0 +1,629 @@
+MATRICULA: 222216662
+NOMBRE: ABARCA VERA EDUARDO YAHAD
+GRUPO: 1010 ARQ
+CICLO ESCOLAR: 2022/2023-1
+NUMEROALUMNO: 10797
+
+select * from alumnos_cxc where numeroalumno=10797
+
+Tabla: Alumnos_grupos
+esta el grupo al que esta inscrito
+codigogrupo: es el que le corresponde al 1010 ARQ
+periodo: es el ciclo escolar donde esta cursando
+
+Tabla: Ciclos
+contiene la informacion del ciclo escolar
+periodo: es el ciclo escolar donde esta cursando
+Descripcion: contiene el nombre del ciclo en formato largo
+codigo_corto: el nombre corto del ciclo escolar
+
+
+
+select * from cfgpagos_det where codigo_plan="ARQAGO/DI"
+Tabla: cfgpagos_det
+contiene la informacion de los meses del plan de pagos
+codigo_plan: ARQAGO/DI
+mes: 1
+periodo_inicio: la fecha de inicio del mes
+periodo_final: la fecha limite de pago sin penaizacion, despues de esa fecha, se le agregan los 100 pesos de recargo
+periodo: es el ciclo escolar donde esta cursando
+
+
+
+Hay un procedimiento que realiza el proceso de cuentas por pagar
+
+CREATE PROCEDURE OBTENER_CXC_ALUMNO (
+  NESCUELA INTEGER,
+  NUMEROALUMNO INTEGER,
+  VERTODASCXC VARCHAR(2)
+) RETURNS (
+  INICIAL INTEGER,
+  FINAL INTEGER,
+  PERIODO INTEGER,
+  CODIGO_PLAN VARCHAR(10),
+  CLAVE VARCHAR(10),
+  CONCEPTO VARCHAR(50),
+  CODIGOBANCARIO VARCHAR(10),
+  CARGOABONO CHAR(1),
+  ANIO SMALLINT,
+  MES SMALLINT,
+  MES_TEXTO VARCHAR(10),
+  CONCEPTO_LARGO VARCHAR(100),
+  ID_NUM SMALLINT,
+  CANTIDADPROGRAMADA DOUBLE PRECISION,
+  CANTIDADPAGADA DOUBLE PRECISION,
+  LIMITE_PRONTOPAGO DATE,
+  PERSONALIZADO CHAR(1),
+  USARPOLITICAS CHAR(1),
+  ADEUDO DOUBLE PRECISION,
+  FECHA_SP1 DATE,
+  FECHA_SP2 DATE,
+  PRORROGA DATE,
+  PAGADO CHAR(1),
+  CERRADO CHAR(1),
+  INTERNALUSE1 CHAR(1),
+  INTERNALUSE2 FLOAT,
+  REFERENCIA VARCHAR(35),
+  REFERENCIA2 VARCHAR(35),
+  REFERENCIA3 VARCHAR(35),
+  RELACION_KARDEX CHAR(1),
+  CLAVEASIGNATURA VARCHAR(10),
+  NOMBREASIGNATURA VARCHAR(100),
+  GRUPOCURSO_REL CHAR(1),
+  CODIGOGRUPO_REL VARCHAR(15),
+  CUENTA VARCHAR(50),
+  DESCRIPCIONCUENTA VARCHAR(100),
+  CUENTA_RECARGOS VARCHAR(50),
+  DESCRIPCIONCUENTA_RECARGOS VARCHAR(100),
+  CUENTA_BECAS VARCHAR(50),
+  DESCRIPCIONCUENTA_BECAS VARCHAR(100),
+  CUENTA_DESCUENTOS VARCHAR(50),
+  DESCRIPCIONCUENTA_DESCUENTOS VARCHAR(100),
+  CUENTA_DESCTOSPRONTOPAGO VARCHAR(50),
+  DESCRIPCIONCUENTA_DESCTOSPTOPAG VARCHAR(100)
+) AS 
+DECLARE VARIABLE cLastClave VARCHAR(10);
+  DECLARE VARIABLE saveID_NUMAlumno INTEGER;
+  DECLARE VARIABLE cNothing VARCHAR(5);
+  
+  DECLARE VARIABLE nSaveCantidadProgramada DOUBLE PRECISION;
+  DECLARE VARIABLE dSaveFechaSP1 DATE;
+  DECLARE VARIABLE dSaveFechaSP2 DATE;
+
+  DECLARE VARIABLE VERSALDOSAFAVOR CHAR(1);
+
+BEGIN
+
+   /*
+     Historial de cambios:
+     
+     27ene2010: Se complementa la informacion devuelve cuando se obtiene de alumnos_saldosafavor_apl
+     25feb2010: Se agrega INTERNALUSE1 e INTERNALUSE2
+     
+    */
+
+   DESCRIPCIONCUENTA = "";
+   DESCRIPCIONCUENTA_RECARGOS = ""; 
+   DESCRIPCIONCUENTA_BECAS = "";
+   DESCRIPCIONCUENTA_DESCUENTOS = "";
+
+   cLastClave = "";
+
+   VERSALDOSAFAVOR = "N";
+
+   IF( VERTODASCXC = "SF" ) THEN  
+   BEGIN   
+       VERTODASCXC = "S";
+       VERSALDOSAFAVOR = "S";
+   END
+
+   IF( VERTODASCXC = "S" ) THEN  
+   BEGIN
+
+       FOR SELECT x.INICIAL, x.FINAL, x.PERIODO, x.CODIGO_PLAN, x.CLAVE, 
+                  x.ANIO, x.MES, x.ID_NUM, x.CANTIDADPROGRAMADA, 
+                  x.CANTIDADPAGADA, x.PERSONALIZADO, x.FECHA_SP1, x.FECHA_SP2, x.PRORROGA,
+                  (x.CANTIDADPROGRAMADA-x.CANTIDADPAGADA) AS ADEUDO, 
+                   x.RELACION_KARDEX, x.PAGADO, x.REFERENCIA, x.REFERENCIA2, x.REFERENCIA3, x.CERRADO,
+                   x.INTERNALUSE1, x.INTERNALUSE2
+       FROM alumnos_cxc x
+       WHERE (x.ID_ESCUELA=:NESCUELA and x.NUMEROALUMNO=:NUMEROALUMNO and (MONEDERO is NULL or MONEDERO=""))
+       INTO :INICIAL, :FINAL, :PERIODO, :CODIGO_PLAN, :CLAVE, 
+            :ANIO, :MES, :ID_NUM, :CANTIDADPROGRAMADA, 
+            :CANTIDADPAGADA, :PERSONALIZADO, :FECHA_SP1, :FECHA_SP2, :PRORROGA,
+            :ADEUDO, :RELACION_KARDEX, :PAGADO, :REFERENCIA, :REFERENCIA2, :REFERENCIA3, :CERRADO,
+            :INTERNALUSE1, :INTERNALUSE2
+       DO
+       BEGIN
+       
+            MES_TEXTO = "";
+
+            IF (MES = 01) THEN MES_TEXTO = "SEPTIEMBRE";
+            IF (MES = 02) THEN MES_TEXTO = "OCTUBRE";
+            IF (MES = 03) THEN MES_TEXTO = "NOVIEMBRE";
+            IF (MES = 04) THEN MES_TEXTO = "DICIEMBRE";
+            IF (MES = 05) THEN MES_TEXTO = "ENERO";
+            IF (MES = 06) THEN MES_TEXTO = "FEBRERO";
+            IF (MES = 07) THEN MES_TEXTO = "MARZO";
+            IF (MES = 08) THEN MES_TEXTO = "ABRIL";
+            IF (MES = 09) THEN MES_TEXTO = "MAYO";
+            IF (MES = 10) THEN MES_TEXTO = "JUNIO";
+            IF (MES = 11) THEN MES_TEXTO = "JULIO";
+            IF (MES = 12) THEN MES_TEXTO = "AGOSTO";
+
+            CLAVEASIGNATURA  = "";
+            NOMBREASIGNATURA = "";
+            GRUPOCURSO_REL = "";
+            CODIGOGRUPO_REL = "";
+
+            LIMITE_PRONTOPAGO = NULL;
+            USARPOLITICAS = "";
+
+            saveID_NUMAlumno = ID_NUM;
+
+            IF ( cLastClave <> :CLAVE ) THEN
+            BEGIN
+               SELECT CARGOABONO, CODIGOBANCARIO, CONCEPTO, CUENTA, CUENTA_RECARGOS, CUENTA_BECAS, CUENTA_DESCUENTOS, CUENTA_DESCTOPRONTOPAGO
+               FROM CFGCONCEPTOPAGOS
+               WHERE ID_ESCUELA=:NESCUELA and CLAVE=:CLAVE
+               INTO :CARGOABONO, :CODIGOBANCARIO, :CONCEPTO, :CUENTA, :CUENTA_RECARGOS, :CUENTA_BECAS, :CUENTA_DESCUENTOS, :CUENTA_DESCTOSPRONTOPAGO;
+
+               IF ( :CUENTA <> "" ) THEN
+               BEGIN
+                   SELECT DESCRIPCIONCUENTA FROM catcuentas
+                   WHERE ID_ESCUELA=:NESCUELA and CUENTA=:CUENTA
+                   INTO :DESCRIPCIONCUENTA;
+               END
+
+               IF ( :CUENTA_RECARGOS <> "" ) THEN
+               BEGIN
+                   SELECT DESCRIPCIONCUENTA FROM catcuentas
+                   WHERE ID_ESCUELA=:NESCUELA and CUENTA=:CUENTA_RECARGOS
+                    INTO :DESCRIPCIONCUENTA_RECARGOS;
+                END
+
+               IF ( :CUENTA_BECAS <> "" ) THEN
+               BEGIN
+                    SELECT DESCRIPCIONCUENTA FROM catcuentas
+                    WHERE ID_ESCUELA=:NESCUELA and CUENTA=:CUENTA_BECAS
+                    INTO :DESCRIPCIONCUENTA_BECAS;
+               END
+
+               IF ( :CUENTA_DESCUENTOS <> "" ) THEN
+               BEGIN
+                    SELECT DESCRIPCIONCUENTA FROM catcuentas
+                    WHERE ID_ESCUELA=:NESCUELA and CUENTA=:CUENTA_DESCUENTOS
+                    INTO :DESCRIPCIONCUENTA_DESCUENTOS;
+               END
+
+               IF ( CUENTA_DESCTOSPRONTOPAGO <> "" ) THEN
+               BEGIN
+                    SELECT DESCRIPCIONCUENTA FROM catcuentas
+                    WHERE ID_ESCUELA=:NESCUELA and CUENTA=:CUENTA_DESCTOSPRONTOPAGO
+                    INTO :DESCRIPCIONCUENTA_DESCTOSPTOPAG;
+               END
+
+               cLastClave = CLAVE;
+
+            END
+            
+            CONCEPTO_LARGO = CONCEPTO;
+
+            IF (ID_NUM <> 0) THEN
+               CONCEPTO_LARGO = CONCEPTO || " " || ID_NUM;
+
+            CONCEPTO_LARGO = CONCEPTO_LARGO || " " || F_LEFT(MES_TEXTO,3) || "/" || ANIO;
+
+            IF ( RELACION_KARDEX = "S" OR RELACION_KARDEX = "Y" ) THEN
+            BEGIN
+
+               FOR SELECT a.CLAVEASIGNATURA, a.GRUPOCURSO, a.CODIGOGRUPO, b.NOMBREASIGNATURA, 
+                      a.ID_NUM_PLAN
+               FROM ALUMNOS_RELKARDEX_CXC a 
+                   LEFT JOIN CFGPLANES_DET b ON (b.ID_ESCUELA=a.ID_ESCUELA and b.ID_PLAN=a.ID_PLAN
+                        and b.ID_TIPOEVAL=a.ID_TIPOEVAL and b.ID_ETAPA=a.ID_ETAPA and b.CLAVEASIGNATURA=a.CLAVEASIGNATURA)
+               WHERE (a.ID_ESCUELA=:NESCUELA and NUMEROALUMNO=:NUMEROALUMNO and a.INICIAL=:INICIAL and 
+                      a.FINAL=:FINAL and a.PERIODO=:PERIODO and
+                      a.CODIGO_PLAN=:CODIGO_PLAN and a.CLAVE=:CLAVE and a.ANIO=:ANIO and
+                      a.MES=:MES and a.ID_NUM=:ID_NUM)
+               PLAN JOIN (A INDEX (ALUMNOS_RELKARDEX_CXCINDEX1),B INDEX (RDB$PRIMARY229))
+               INTO :CLAVEASIGNATURA, :GRUPOCURSO_REL, :CODIGOGRUPO_REL, :NOMBREASIGNATURA, :ID_NUM
+               DO 
+               BEGIN
+                   cNOTHING = "";
+               END
+
+               /* OJO: AQUI SE OBTIENE EL ID_NUM CON EL QUE FUE PROGRAMADO EN CFGPAGOS_DET */
+               IF( CODIGOGRUPO_REL IS NULL ) THEN CODIGOGRUPO_REL = "";
+
+            END
+            ELSE
+            BEGIN
+               CLAVEASIGNATURA  = "";  
+               NOMBREASIGNATURA = "";
+               GRUPOCURSO_REL   = "";
+               CODIGOGRUPO_REL  = "";
+            END
+
+            IF( CODIGO_PLAN <> "" ) THEN
+            BEGIN
+
+               nSaveCantidadProgramada = :CANTIDADPROGRAMADA;
+               dSaveFechaSP1 = :FECHA_SP1;
+               dSaveFechaSP2 = :FECHA_SP2;
+
+               /* Si es un de plan de pagos obtener los parametros de pago */       
+               SELECT PERIODO_INICIO, PERIODO_FINAL, LIMITE_PRONTOPAGO, CANTIDAD, USARPOLITICAS
+               FROM cfgpagos_det
+               WHERE ID_ESCUELA=:nEscuela and INICIAL=:INICIAL and FINAL=:FINAL and PERIODO=:PERIODO and
+                     CODIGO_PLAN=:CODIGO_PLAN and CLAVE=:CLAVE and ANIO=:ANIO and MES=:MES and ID_NUM=:Id_Num
+               INTO :FECHA_SP1, :FECHA_SP2, :LIMITE_PRONTOPAGO, :CANTIDADPROGRAMADA, :USARPOLITICAS;
+
+               IF ( CANTIDADPROGRAMADA IS NULL ) THEN
+                  CANTIDADPROGRAMADA = nSaveCantidadProgramada;
+
+               IF ( FECHA_SP1 IS NULL ) THEN
+                  FECHA_SP1 = dSaveFechaSP1;
+
+               IF ( FECHA_SP2 IS NULL ) THEN
+                  FECHA_SP2 = dSaveFechaSP2;
+
+            END
+
+            ID_NUM = :saveID_NUMAlumno;
+
+            SUSPEND;
+       END 
+
+       cLastClave = "";
+
+       CARGOABONO = NULL;
+       CODIGOBANCARIO = NULL;
+       CONCEPTO = "SALDO A FAVOR";
+       CUENTA = NULL;
+       CUENTA_RECARGOS = NULL;
+       CUENTA_BECAS = NULL;
+       CUENTA_DESCUENTOS = NULL;
+       CUENTA_DESCTOSPRONTOPAGO = NULL;
+
+       PAGADO = "N";
+       CERRADO = "N";
+       RELACION_KARDEX = NULL;
+
+       IF( VERSALDOSAFAVOR = "S" ) THEN
+       BEGIN
+       
+          /* conceptos de saldos a favor */
+          FOR SELECT x.INICIAL, x.FINAL, x.PERIODO, x.CODIGO_PLAN, x.CLAVE, 
+                     x.ANIO, x.MES, x.ID_NUM, x.SALDOAFAVOR, x.CANTIDADAPLICADA, x.FECHA,
+                     (x.SALDOAFAVOR-x.CANTIDADAPLICADA) AS ADEUDO
+          FROM alumnos_saldosafavor x
+          WHERE ID_ESCUELA=:nEscuela and NUMEROALUMNO=:NumeroAlumno and
+                CAJA=0 and SESIONCAJA=0 and RECIBOCAJA=""
+          INTO :INICIAL, :FINAL, :PERIODO, :CODIGO_PLAN, :CLAVE, 
+               :ANIO, :MES, :ID_NUM, :CANTIDADPROGRAMADA, :CANTIDADPAGADA, :FECHA_SP1,
+               :ADEUDO
+          DO
+          BEGIN
+
+            IF (MES = 01) THEN MES_TEXTO = "SEPTIEMBRE";
+            IF (MES = 02) THEN MES_TEXTO = "OCTUBRE";
+            IF (MES = 03) THEN MES_TEXTO = "NOVIEMBRE";
+            IF (MES = 04) THEN MES_TEXTO = "DICIEMBRE";
+            IF (MES = 05) THEN MES_TEXTO = "ENERO";
+            IF (MES = 06) THEN MES_TEXTO = "FEBRERO";
+            IF (MES = 07) THEN MES_TEXTO = "MARZO";
+            IF (MES = 08) THEN MES_TEXTO = "ABRIL";
+            IF (MES = 09) THEN MES_TEXTO = "MAYO";
+            IF (MES = 10) THEN MES_TEXTO = "JUNIO";
+            IF (MES = 11) THEN MES_TEXTO = "JULIO";
+            IF (MES = 12) THEN MES_TEXTO = "AGOSTO";
+
+            SELECT CODIGOBANCARIO, CONCEPTO, CUENTA, CUENTA_RECARGOS, CUENTA_BECAS, CUENTA_DESCUENTOS, CUENTA_DESCTOPRONTOPAGO
+            FROM CFGCONCEPTOPAGOS
+            WHERE ID_ESCUELA=:NESCUELA and CLAVE=:CLAVE
+            INTO :CODIGOBANCARIO, :CONCEPTO, :CUENTA, :CUENTA_RECARGOS, :CUENTA_BECAS, :CUENTA_DESCUENTOS, :CUENTA_DESCTOSPRONTOPAGO;
+            
+            CONCEPTO_LARGO = CONCEPTO;
+
+            IF (ID_NUM <> 0) THEN
+               CONCEPTO_LARGO = CONCEPTO || " " || ID_NUM;
+
+            CONCEPTO_LARGO = CONCEPTO_LARGO || " " || F_LEFT(MES_TEXTO,3) || "/" || ANIO;
+
+            CARGOABONO = "F";
+            FECHA_SP2 = :FECHA_SP1;
+
+            CLAVEASIGNATURA  = ""; NOMBREASIGNATURA = "";
+            GRUPOCURSO_REL = "";   CODIGOGRUPO_REL = "";
+
+            LIMITE_PRONTOPAGO = NULL;
+            USARPOLITICAS = "";
+
+            saveID_NUMAlumno = ID_NUM;
+ 
+            SUSPEND; 
+
+          END
+
+          INICIAL = NULL;     FINAL = NULL;    PERIODO = NULL;
+          CODIGO_PLAN = NULL; CLAVE = NULL;   
+
+          CANTIDADPAGADA = 0;
+
+          /* Devoluciones de saldos a favor por Egreso */
+          FOR SELECT x.FECHA, x.CANTIDAD
+          FROM egresos x
+          WHERE ID_ESCUELA=:nEscuela and NUMEROALUMNO=:NumeroAlumno and ST <> "C"
+          INTO :FECHA_SP1, :CANTIDADPROGRAMADA
+          DO
+          BEGIN
+
+            CLAVE = "";
+            CONCEPTO = "";
+            CONCEPTO_LARGO = "";
+            
+            REFERENCIA = "";
+            REFERENCIA2 = "";
+            REFERENCIA3 = "";
+
+            CARGOABONO = "Z";
+            FECHA_SP2 = :FECHA_SP1;
+            
+            ANIO = F_YEAR( FECHA_SP1 );
+            MES  = F_MONTH( FECHA_SP1 );
+            
+            /* convertir mes a estilo GES */
+            IF( MES >= 9 ) THEN
+               MES  = MES - 8;
+            ELSE
+               MES  = MES + 4;
+            
+            IF (MES = 01) THEN MES_TEXTO = "SEPTIEMBRE";
+            IF (MES = 02) THEN MES_TEXTO = "OCTUBRE";
+            IF (MES = 03) THEN MES_TEXTO = "NOVIEMBRE";
+            IF (MES = 04) THEN MES_TEXTO = "DICIEMBRE";
+            IF (MES = 05) THEN MES_TEXTO = "ENERO";
+            IF (MES = 06) THEN MES_TEXTO = "FEBRERO";
+            IF (MES = 07) THEN MES_TEXTO = "MARZO";
+            IF (MES = 08) THEN MES_TEXTO = "ABRIL";
+            IF (MES = 09) THEN MES_TEXTO = "MAYO";
+            IF (MES = 10) THEN MES_TEXTO = "JUNIO";
+            IF (MES = 11) THEN MES_TEXTO = "JULIO";
+            IF (MES = 12) THEN MES_TEXTO = "AGOSTO";
+
+            CLAVEASIGNATURA  = ""; NOMBREASIGNATURA = "";
+            GRUPOCURSO_REL = "";   CODIGOGRUPO_REL = "";
+
+            LIMITE_PRONTOPAGO = NULL;
+            USARPOLITICAS = "";
+
+            saveID_NUMAlumno = ID_NUM;
+ 
+            SUSPEND;
+          END
+
+          /* Devoluciones de saldos a favor por notificacion */
+          /*
+             27ene2010: Se incorpora INICIAL, FINAL y PERIODO.
+             
+           */
+          
+          FOR SELECT x.INICIAL_REDIM, x.FINAL_REDIM, x.PERIODO_REDIM, x.FECHA, x.CANTIDAD_REDIMIDA, x.FORMA_DEVOLUCION, x.APLICACION
+          FROM alumnos_saldosafavor_apl x
+          WHERE ID_ESCUELA=:nEscuela and NUMEROALUMNO=:NumeroAlumno and
+                CAJA=0 and SESIONCAJA=0 and RECIBOCAJA="" and ID_EGRESO="" and 
+                NOTIFICACION="S"
+          INTO :INICIAL, :FINAL, :PERIODO, :FECHA_SP1, :CANTIDADPROGRAMADA, :RELACION_KARDEX, :REFERENCIA
+          DO
+          BEGIN
+
+            CLAVE = "";
+            CONCEPTO = "";
+            CONCEPTO_LARGO = "";
+
+            REFERENCIA2 = "";
+            REFERENCIA3 = "";
+            
+            CARGOABONO = "Z";
+            FECHA_SP2 = :FECHA_SP1;
+            
+            ANIO = F_YEAR( FECHA_SP1 );
+            MES  = F_MONTH( FECHA_SP1 );
+
+            /* convertir mes a estilo GES */
+            IF( MES >= 9 ) THEN
+               MES  = MES - 8;
+            ELSE
+               MES  = MES + 4;
+
+            IF (MES = 01) THEN MES_TEXTO = "SEPTIEMBRE";
+            IF (MES = 02) THEN MES_TEXTO = "OCTUBRE";
+            IF (MES = 03) THEN MES_TEXTO = "NOVIEMBRE";
+            IF (MES = 04) THEN MES_TEXTO = "DICIEMBRE";
+            IF (MES = 05) THEN MES_TEXTO = "ENERO";
+            IF (MES = 06) THEN MES_TEXTO = "FEBRERO";
+            IF (MES = 07) THEN MES_TEXTO = "MARZO";
+            IF (MES = 08) THEN MES_TEXTO = "ABRIL";
+            IF (MES = 09) THEN MES_TEXTO = "MAYO";
+            IF (MES = 10) THEN MES_TEXTO = "JUNIO";
+            IF (MES = 11) THEN MES_TEXTO = "JULIO";
+            IF (MES = 12) THEN MES_TEXTO = "AGOSTO";
+
+            CLAVEASIGNATURA  = ""; NOMBREASIGNATURA = "";
+            GRUPOCURSO_REL = "";   CODIGOGRUPO_REL = "";
+
+            LIMITE_PRONTOPAGO = NULL;
+            USARPOLITICAS = "";
+
+            saveID_NUMAlumno = ID_NUM;
+
+            SUSPEND;
+          END
+
+       END
+
+  END
+  ELSE
+  BEGIN
+
+       FOR SELECT x.INICIAL, x.FINAL, x.PERIODO, x.CODIGO_PLAN, x.CLAVE, 
+                  x.ANIO, x.MES, x.ID_NUM, x.CANTIDADPROGRAMADA, 
+                  x.CANTIDADPAGADA, x.PERSONALIZADO, x.FECHA_SP1, x.FECHA_SP2, x.PRORROGA,
+                  (x.CANTIDADPROGRAMADA-x.CANTIDADPAGADA) AS ADEUDO, 
+                   x.RELACION_KARDEX, x.PAGADO, x.REFERENCIA, x.REFERENCIA2, x.REFERENCIA3, x.CERRADO,
+                   x.INTERNALUSE1, x.INTERNALUSE2
+       FROM alumnos_cxc x
+       WHERE (x.ID_ESCUELA=:NESCUELA and x.NUMEROALUMNO=:NUMEROALUMNO and x.PAGADO="N" and (MONEDERO is NULL or MONEDERO=""))
+       INTO :INICIAL, :FINAL, :PERIODO, :CODIGO_PLAN, :CLAVE, 
+            :ANIO, :MES, :ID_NUM, :CANTIDADPROGRAMADA, 
+            :CANTIDADPAGADA, :PERSONALIZADO, :FECHA_SP1, :FECHA_SP2, :PRORROGA,
+            :ADEUDO, :RELACION_KARDEX, :PAGADO, :REFERENCIA, :REFERENCIA2, :REFERENCIA3, :CERRADO,
+            :INTERNALUSE1, :INTERNALUSE2
+       DO
+       BEGIN
+
+            MES_TEXTO = "";
+
+            IF (MES = 01) THEN MES_TEXTO = "SEPTIEMBRE";
+            IF (MES = 02) THEN MES_TEXTO = "OCTUBRE";
+            IF (MES = 03) THEN MES_TEXTO = "NOVIEMBRE";
+            IF (MES = 04) THEN MES_TEXTO = "DICIEMBRE";
+            IF (MES = 05) THEN MES_TEXTO = "ENERO";
+            IF (MES = 06) THEN MES_TEXTO = "FEBRERO";
+            IF (MES = 07) THEN MES_TEXTO = "MARZO";
+            IF (MES = 08) THEN MES_TEXTO = "ABRIL";
+            IF (MES = 09) THEN MES_TEXTO = "MAYO";
+            IF (MES = 10) THEN MES_TEXTO = "JUNIO";
+            IF (MES = 11) THEN MES_TEXTO = "JULIO";
+            IF (MES = 12) THEN MES_TEXTO = "AGOSTO";
+
+            CLAVEASIGNATURA  = "";
+            NOMBREASIGNATURA = "";
+            GRUPOCURSO_REL = "";
+            CODIGOGRUPO_REL = "";
+
+            LIMITE_PRONTOPAGO = NULL;
+
+            saveID_NUMAlumno = ID_NUM;
+
+            IF ( cLastClave <> :CLAVE ) THEN
+            BEGIN
+
+               SELECT CARGOABONO, CODIGOBANCARIO, CONCEPTO, CUENTA, CUENTA_RECARGOS, CUENTA_BECAS, CUENTA_DESCUENTOS, CUENTA_DESCTOPRONTOPAGO
+               FROM CFGCONCEPTOPAGOS
+               WHERE ID_ESCUELA=:NESCUELA and CLAVE=:CLAVE
+               INTO :CARGOABONO, :CODIGOBANCARIO, :CONCEPTO, :CUENTA, :CUENTA_RECARGOS, :CUENTA_BECAS, :CUENTA_DESCUENTOS, :CUENTA_DESCTOSPRONTOPAGO;
+
+               IF ( :CUENTA <> "" ) THEN
+               BEGIN
+                   SELECT DESCRIPCIONCUENTA FROM catcuentas
+                   WHERE ID_ESCUELA=:NESCUELA and CUENTA=:CUENTA
+                   INTO :DESCRIPCIONCUENTA;
+               END
+
+               IF ( :CUENTA_RECARGOS <> "" ) THEN
+               BEGIN
+                   SELECT DESCRIPCIONCUENTA FROM catcuentas
+                   WHERE ID_ESCUELA=:NESCUELA and CUENTA=:CUENTA_RECARGOS
+                    INTO :DESCRIPCIONCUENTA_RECARGOS;
+                END
+
+               IF ( :CUENTA_BECAS <> "" ) THEN
+               BEGIN
+                    SELECT DESCRIPCIONCUENTA FROM catcuentas
+                    WHERE ID_ESCUELA=:NESCUELA and CUENTA=:CUENTA_BECAS
+                    INTO :DESCRIPCIONCUENTA_BECAS;
+               END
+
+               IF ( :CUENTA_DESCUENTOS <> "" ) THEN
+               BEGIN
+                    SELECT DESCRIPCIONCUENTA FROM catcuentas
+                    WHERE ID_ESCUELA=:NESCUELA and CUENTA=:CUENTA_DESCUENTOS
+                    INTO :DESCRIPCIONCUENTA_DESCUENTOS;
+               END
+
+               IF ( CUENTA_DESCTOSPRONTOPAGO <> "" ) THEN
+               BEGIN
+                    SELECT DESCRIPCIONCUENTA FROM catcuentas
+                    WHERE ID_ESCUELA=:NESCUELA and CUENTA=:CUENTA_DESCTOSPRONTOPAGO
+                    INTO :DESCRIPCIONCUENTA_DESCTOSPTOPAG;
+               END
+
+               cLastClave = CLAVE;
+
+            END
+
+            CONCEPTO_LARGO = CONCEPTO;
+
+            IF (ID_NUM <> 0) THEN
+               CONCEPTO_LARGO = CONCEPTO || " " || ID_NUM;
+
+            CONCEPTO_LARGO = CONCEPTO_LARGO || " " || F_LEFT(MES_TEXTO,3) || "/" || ANIO;
+
+            IF ( RELACION_KARDEX = "S" OR RELACION_KARDEX = "Y" ) THEN
+            BEGIN
+
+               FOR SELECT a.CLAVEASIGNATURA, a.GRUPOCURSO, a.CODIGOGRUPO, b.NOMBREASIGNATURA, 
+                      a.ID_NUM_PLAN
+               FROM ALUMNOS_RELKARDEX_CXC a 
+                   LEFT JOIN CFGPLANES_DET b ON (b.ID_ESCUELA=a.ID_ESCUELA and b.ID_PLAN=a.ID_PLAN
+                        and b.ID_TIPOEVAL=a.ID_TIPOEVAL and b.ID_ETAPA=a.ID_ETAPA and b.CLAVEASIGNATURA=a.CLAVEASIGNATURA)
+               WHERE (a.ID_ESCUELA=:NESCUELA and NUMEROALUMNO=:NUMEROALUMNO and a.INICIAL=:INICIAL and 
+                      a.FINAL=:FINAL and a.PERIODO=:PERIODO and
+                      a.CODIGO_PLAN=:CODIGO_PLAN and a.CLAVE=:CLAVE and a.ANIO=:ANIO and
+                      a.MES=:MES and a.ID_NUM=:ID_NUM)
+               PLAN JOIN (A INDEX (ALUMNOS_RELKARDEX_CXCINDEX1),B INDEX (RDB$PRIMARY229))
+               INTO :CLAVEASIGNATURA, :GRUPOCURSO_REL, :CODIGOGRUPO_REL, :NOMBREASIGNATURA, :ID_NUM
+               DO 
+               BEGIN
+                   cNOTHING = "";
+               END
+
+               /* OJO: AQUI SE OBTIENE EL ID_NUM CON EL QUE FUE PROGRAMADO EN CFGPAGOS_DET 
+*/
+   
+               IF( CODIGOGRUPO_REL IS NULL ) THEN CODIGOGRUPO_REL = "";
+
+            END
+            ELSE
+            BEGIN
+               CLAVEASIGNATURA  = "";  
+               NOMBREASIGNATURA = "";
+               GRUPOCURSO_REL   = "";
+               CODIGOGRUPO_REL  = "";
+            END
+
+            IF( CODIGO_PLAN <> "" ) THEN
+            BEGIN
+
+               nSaveCantidadProgramada = :CANTIDADPROGRAMADA;
+               dSaveFechaSP1 = :FECHA_SP1;
+               dSaveFechaSP2 = :FECHA_SP2;
+
+               /* Si es un de plan de pagos obtener los parametros de pago */       
+               SELECT PERIODO_INICIO, PERIODO_FINAL, LIMITE_PRONTOPAGO, CANTIDAD, USARPOLITICAS
+               FROM cfgpagos_det
+               WHERE ID_ESCUELA=:nEscuela and INICIAL=:INICIAL and FINAL=:FINAL and PERIODO=:PERIODO and
+                     CODIGO_PLAN=:CODIGO_PLAN and CLAVE=:CLAVE and ANIO=:ANIO and MES=:MES and ID_NUM=:Id_Num
+               INTO :FECHA_SP1, :FECHA_SP2, :LIMITE_PRONTOPAGO, :CANTIDADPROGRAMADA, :USARPOLITICAS;
+
+               IF ( CANTIDADPROGRAMADA IS NULL ) THEN
+                  CANTIDADPROGRAMADA = nSaveCantidadProgramada;
+
+               IF ( FECHA_SP1 IS NULL ) THEN
+                  FECHA_SP1 = dSaveFechaSP1;
+
+               IF ( FECHA_SP2 IS NULL ) THEN
+                  FECHA_SP2 = dSaveFechaSP2;
+
+            END
+
+            ID_NUM = :saveID_NUMAlumno;
+
+            SUSPEND;
+       END 
+
+  END
+   
+END
